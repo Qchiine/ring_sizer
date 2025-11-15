@@ -1,6 +1,6 @@
 class ApiConfig {
   // Pour Android Emulator
-  static const String baseUrl = 'http://10.0.2.2:5000/api';
+  static const String baseUrl = 'http://192.168.10.55:5000/api';
   
   // Pour iOS Simulator (utiliser localhost)
   // Pour appareil physique (utiliser votre IP locale)
