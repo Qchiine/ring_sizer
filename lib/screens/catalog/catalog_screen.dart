@@ -5,8 +5,10 @@ import 'package:ring_sizer/providers/catalog_provider.dart';
 import 'package:ring_sizer/screens/profile/profile_screen.dart';
 
 class CatalogScreen extends StatefulWidget {
+  const CatalogScreen({super.key}); // Ajout de la clé
+
   @override
-  _CatalogScreenState createState() => _CatalogScreenState();
+  State<CatalogScreen> createState() => _CatalogScreenState();
 }
 
 class _CatalogScreenState extends State<CatalogScreen> {
@@ -15,7 +17,10 @@ class _CatalogScreenState extends State<CatalogScreen> {
     super.initState();
     // Utiliser addPostFrameCallback pour appeler le provider après la construction du widget
     WidgetsBinding.instance.addPostFrameCallback((_) {
-      Provider.of<CatalogProvider>(context, listen: false).fetchProducts();
+      // Vérifier si le widget est toujours monté avant d'appeler le provider
+      if (mounted) {
+        Provider.of<CatalogProvider>(context, listen: false).fetchProducts();
+      }
     });
   }
 
@@ -29,7 +34,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             icon: const Icon(Icons.person),
             onPressed: () {
               Navigator.of(context).push(
-                MaterialPageRoute(builder: (_) => ProfileScreen()),
+                MaterialPageRoute(builder: (_) => const ProfileScreen()),
               );
             },
           ),
@@ -60,7 +65,7 @@ class _CatalogScreenState extends State<CatalogScreen> {
             itemBuilder: (ctx, i) {
               final product = catalog.products[i];
               return ListTile(
-                leading: Image.network(product.imageUrl, width: 50, fit: BoxFit.cover),
+                leading: Image.network(product.imageUrl, width: 50, fit: BoxFit.cover, errorBuilder: (c, o, s) => const Icon(Icons.error)),
                 title: Text(product.title),
                 subtitle: Text('${product.price} € - ${product.weight}g'),
                 // TODO: Ajouter la navigation vers la fiche produit détaillée

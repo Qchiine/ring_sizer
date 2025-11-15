@@ -2,8 +2,10 @@ import 'package:flutter/material.dart';
 import 'package:ring_sizer/services/measurement_service.dart';
 
 class MeasurementsScreen extends StatefulWidget {
+  const MeasurementsScreen({super.key}); // Ajout de la clé
+
   @override
-  _MeasurementsScreenState createState() => _MeasurementsScreenState();
+  State<MeasurementsScreen> createState() => _MeasurementsScreenState();
 }
 
 class _MeasurementsScreenState extends State<MeasurementsScreen> {
@@ -15,8 +17,8 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
   int? _calculatedSize;
   bool _isLoading = false;
 
-  void _calculate() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _calculate() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() { _isLoading = true; _calculatedSize = null; });
 
     try {
@@ -24,16 +26,19 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
         _selectedType,
         double.parse(_valueController.text),
       );
+      // Correction pour BuildContext
+      if (!mounted) return;
       setState(() { _calculatedSize = size; });
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
 
     setState(() { _isLoading = false; });
   }
 
-  void _save() async {
-    if (!_formKey.currentState!.validate()) return;
+  Future<void> _save() async {
+    if (!(_formKey.currentState?.validate() ?? false)) return;
     setState(() { _isLoading = true; });
 
     try {
@@ -41,9 +46,12 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
         _selectedType,
         double.parse(_valueController.text),
       );
+      // Correction pour BuildContext
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(const SnackBar(content: Text('Mesure enregistrée !')));
       Navigator.of(context).pop(); // Revenir à l'écran de profil
     } catch (e) {
+      if (!mounted) return;
       ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(e.toString())));
     }
     
@@ -96,7 +104,7 @@ class _MeasurementsScreenState extends State<MeasurementsScreen> {
                   padding: const EdgeInsets.only(top: 20),
                   child: Text(
                     'Taille standard calculée : $_calculatedSize',
-                    style: Theme.of(context).textTheme.headline6,
+                    style: Theme.of(context).textTheme.titleLarge, // Correction ici
                     textAlign: TextAlign.center,
                   ),
                 ),

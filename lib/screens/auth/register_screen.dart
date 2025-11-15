@@ -4,8 +4,10 @@ import 'package:ring_sizer/providers/auth_provider.dart';
 import 'package:ring_sizer/screens/auth/login_screen.dart';
 
 class RegisterScreen extends StatefulWidget {
+  const RegisterScreen({super.key});
+
   @override
-  _RegisterScreenState createState() => _RegisterScreenState();
+  State<RegisterScreen> createState() => _RegisterScreenState();
 }
 
 class _RegisterScreenState extends State<RegisterScreen> {
@@ -15,7 +17,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
   final _passwordController = TextEditingController();
 
   Future<void> _submit() async {
-    if (!_formKey.currentState!.validate()) {
+    if (!(_formKey.currentState?.validate() ?? false)) {
       return;
     }
 
@@ -25,6 +27,8 @@ class _RegisterScreenState extends State<RegisterScreen> {
       _emailController.text,
       _passwordController.text,
     );
+
+    if (!mounted) return;
 
     if (!success) {
       ScaffoldMessenger.of(context).showSnackBar(
@@ -72,7 +76,7 @@ class _RegisterScreenState extends State<RegisterScreen> {
               TextButton(
                   onPressed: () {
                     Navigator.of(context).pushReplacement(
-                      MaterialPageRoute(builder: (_) => LoginScreen()),
+                      MaterialPageRoute(builder: (_) => const LoginScreen()),
                     );
                   },
                   child: const Text('Déjà un compte ? Se connecter'))

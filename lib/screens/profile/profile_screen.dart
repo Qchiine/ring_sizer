@@ -5,6 +5,8 @@ import 'package:ring_sizer/screens/measurements/measurements_screen.dart';
 import 'package:intl/intl.dart';
 
 class ProfileScreen extends StatelessWidget {
+  const ProfileScreen({super.key}); // Ajout de la clé
+
   @override
   Widget build(BuildContext context) {
     final profileProvider = Provider.of<ProfileProvider>(context);
@@ -41,7 +43,7 @@ class ProfileScreen extends StatelessWidget {
                       ),
                     ),
                   const SizedBox(height: 20),
-                  Text('Mes Mesures', style: Theme.of(context).textTheme.headline6),
+                  Text('Mes Mesures', style: Theme.of(context).textTheme.titleLarge), // Correction ici
                   Expanded(
                     child: ListView.builder(
                       itemCount: profileProvider.measurements.length,
@@ -65,6 +67,7 @@ class ProfileScreen extends StatelessWidget {
 // Petite extension pour mettre la première lettre en majuscule
 extension StringExtension on String {
   String capitalize() {
+    if (this.isEmpty) return "";
     return "${this[0].toUpperCase()}${this.substring(1)}";
   }
 }
