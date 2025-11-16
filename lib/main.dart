@@ -1,56 +1,11 @@
-import 'dart:io' show Platform;
-import 'package:flutter/foundation.dart' show kIsWeb;
 import 'package:flutter/material.dart';
-import 'package:shared_preferences/shared_preferences.dart';
-import 'screens/auth/login_screen.dart';
-import 'screens/dashboard/dashboard_screen.dart';
-
-void main() async {
-  // 1. S'assurer que Flutter est prêt
-  WidgetsFlutterBinding.ensureInitialized();
-
-  bool isLoggedIn = false;
-
-  // 2. Vérifier si on n'est PAS sur une plateforme desktop ou web
-  // Le plugin shared_preferences est principalement pour mobile.
-  if (!kIsWeb && (Platform.isAndroid || Platform.isIOS || Platform.isMacOS)) {
-    // Logique pour mobile : on vérifie le token
-    final prefs = await SharedPreferences.getInstance();
-    final token = prefs.getString('token');
-    isLoggedIn = token != null;
-  }
-  // Pour Windows, Linux, ou le web, on ne vérifie pas le token et on considère
-  // l'utilisateur comme déconnecté. Cela évite le crash du plugin.
-
-  // 3. Lancer l'application avec la bonne page
-  runApp(RingSizerSellerApp(isLoggedIn: isLoggedIn));
-}
-
-class RingSizerSellerApp extends StatelessWidget {
-  final bool isLoggedIn;
-
-  const RingSizerSellerApp({Key? key, required this.isLoggedIn}) : super(key: key);
-
-  @override
-  Widget build(BuildContext context) {
-    return MaterialApp(
-      title: 'Ring Sizer - Vendeur',
-      debugShowCheckedModeBanner: false,
-      theme: ThemeData(
-        primarySwatch: Colors.deepPurple,
-        scaffoldBackgroundColor: Colors.white,
-        fontFamily: 'Roboto',
-        useMaterial3: true,
-      ),
-      // Si l'utilisateur n'est pas connecté (ou si on est sur Windows),
-      // on affiche la page de connexion. Sinon, le tableau de bord.
-      home: isLoggedIn ? const DashboardScreen() : const LoginScreen(),
 import 'package:provider/provider.dart';
 import 'package:ring_sizer/providers/auth_provider.dart';
 import 'package:ring_sizer/providers/catalog_provider.dart';
 import 'package:ring_sizer/providers/profile_provider.dart';
 import 'package:ring_sizer/screens/auth/login_screen.dart';
-import 'package:ring_sizer/screens/catalog/catalog_screen.dart'; // Nous allons créer cet écran bientôt
+import 'package:ring_sizer/features/catalog/screens/catalog_screen.dart'; // Correction du chemin
+import 'package:ring_sizer/screens/dashboard/dashboard_screen.dart';
 
 void main() {
   runApp(const MyApp());
@@ -66,22 +21,44 @@ class MyApp extends StatelessWidget {
         ChangeNotifierProvider(create: (_) => AuthProvider()),
         ChangeNotifierProxyProvider<AuthProvider, ProfileProvider>(
           create: (_) => ProfileProvider(),
-          update: (context, auth, previousProfile) => previousProfile!..fetchProfile(), // Met à jour le profil quand l'auth change
+          update: (context, auth, previousProfile) => previousProfile!..fetchProfile(),
         ),
         ChangeNotifierProvider(create: (_) => CatalogProvider()),
       ],
-      child: Consumer<AuthProvider>(
-        builder: (ctx, auth, _) => MaterialApp(
-          title: 'Ring Sizer',
-          theme: ThemeData(
-            colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
-            useMaterial3: true,
-          ),
-          home: auth.isAuthenticated
-              ? CatalogScreen() // Si authentifié, va au catalogue
-              : LoginScreen(),    // Sinon, va à l'écran de connexion
+      child: MaterialApp(
+        title: 'Ring Sizer',
+        debugShowCheckedModeBanner: false,
+        theme: ThemeData(
+          colorScheme: ColorScheme.fromSeed(seedColor: Colors.deepPurple),
+          useMaterial3: true,
+          fontFamily: 'Roboto',
         ),
+        home: const AuthWrapper(),
       ),
     );
+  }
+}
+
+class AuthWrapper extends StatelessWidget {
+  const AuthWrapper({super.key});
+
+  @override
+  Widget build(BuildContext context) {
+    // On écoute les changements dans AuthProvider
+    final auth = Provider.of<AuthProvider>(context);
+
+    if (auth.isAuthenticated) {
+      // Si l'utilisateur est un vendeur, on montre le tableau de bord
+      if (auth.userRole == 'seller') {
+        return const DashboardScreen();
+      }
+      // Sinon (on suppose que c'est un acheteur), on montre le catalogue
+      else {
+        return const CatalogScreen();
+      }
+    } else {
+      // Si non authentifié, on montre l'écran de connexion
+      return const LoginScreen();
+    }
   }
 }

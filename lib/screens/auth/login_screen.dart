@@ -1,10 +1,4 @@
 import 'package:flutter/material.dart';
-import '../../services/api_service.dart';
-import '../dashboard/dashboard_screen.dart';
-import 'register_screen.dart';
-
-class LoginScreen extends StatefulWidget {
-  const LoginScreen({Key? key}) : super(key: key);
 import 'package:provider/provider.dart';
 import 'package:ring_sizer/providers/auth_provider.dart';
 import 'package:ring_sizer/screens/auth/register_screen.dart';
@@ -17,15 +11,47 @@ class LoginScreen extends StatefulWidget {
 }
 
 class _LoginScreenState extends State<LoginScreen> {
+  final _formKey = GlobalKey<FormState>();
   final _emailController = TextEditingController(text: 'seller@example.com');
   final _passwordController = TextEditingController(text: 'password123');
-  final _formKey = GlobalKey<FormState>();
-  bool _isLoading = false;
   bool _obscurePassword = true;
-  final ApiService _apiService = ApiService();
+
+  @override
+  void dispose() {
+    _emailController.dispose();
+    _passwordController.dispose();
+    super.dispose();
+  }
+
+  Future<void> _login() async {
+    if (!(_formKey.currentState?.validate() ?? false)) {
+      return;
+    }
+
+    final authProvider = Provider.of<AuthProvider>(context, listen: false);
+    final success = await authProvider.login(
+      _emailController.text.trim(),
+      _passwordController.text.trim(),
+    );
+
+    if (!mounted) return;
+
+    if (!success) {
+      ScaffoldMessenger.of(context).showSnackBar(
+        SnackBar(
+          content: Text(authProvider.errorMessage ?? 'Erreur de connexion'),
+          backgroundColor: Colors.red,
+        ),
+      );
+    }
+    // La navigation est gérée par AuthWrapper dans main.dart
+  }
 
   @override
   Widget build(BuildContext context) {
+    final authProvider = Provider.of<AuthProvider>(context);
+    final isLoading = authProvider.isLoading;
+
     return Scaffold(
       body: Container(
         decoration: BoxDecoration(
@@ -47,7 +73,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 child: Column(
                   mainAxisAlignment: MainAxisAlignment.center,
                   children: [
-                    // Logo
                     Hero(
                       tag: 'logo',
                       child: Container(
@@ -72,8 +97,6 @@ class _LoginScreenState extends State<LoginScreen> {
                       ),
                     ),
                     const SizedBox(height: 30),
-
-                    // Card de connexion
                     Container(
                       padding: const EdgeInsets.all(30),
                       decoration: BoxDecoration(
@@ -91,7 +114,7 @@ class _LoginScreenState extends State<LoginScreen> {
                         crossAxisAlignment: CrossAxisAlignment.start,
                         children: [
                           const Text(
-                            'Espace Vendeur',
+                            'Connexion',
                             style: TextStyle(
                               fontSize: 28,
                               fontWeight: FontWeight.bold,
@@ -100,15 +123,13 @@ class _LoginScreenState extends State<LoginScreen> {
                           ),
                           const SizedBox(height: 8),
                           Text(
-                            'Connectez-vous pour gérer votre boutique',
+                            'Connectez-vous à votre compte',
                             style: TextStyle(
                               fontSize: 14,
                               color: Colors.grey[600],
                             ),
                           ),
                           const SizedBox(height: 30),
-
-                          // Email
                           TextFormField(
                             controller: _emailController,
                             decoration: InputDecoration(
@@ -132,8 +153,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 20),
-
-                          // Mot de passe
                           TextFormField(
                             controller: _passwordController,
                             decoration: InputDecoration(
@@ -169,13 +188,11 @@ class _LoginScreenState extends State<LoginScreen> {
                             },
                           ),
                           const SizedBox(height: 30),
-
-                          // Bouton de connexion
                           SizedBox(
                             width: double.infinity,
                             height: 55,
                             child: ElevatedButton(
-                              onPressed: _isLoading ? null : _login,
+                              onPressed: isLoading ? null : _login,
                               style: ElevatedButton.styleFrom(
                                 backgroundColor: Colors.deepPurple,
                                 shape: RoundedRectangleBorder(
@@ -183,7 +200,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 ),
                                 elevation: 0,
                               ),
-                              child: _isLoading
+                              child: isLoading
                                   ? const SizedBox(
                                 height: 20,
                                 width: 20,
@@ -203,8 +220,6 @@ class _LoginScreenState extends State<LoginScreen> {
                             ),
                           ),
                           const SizedBox(height: 20),
-
-                          // Lien inscription
                           Center(
                             child: TextButton(
                               onPressed: () {
@@ -216,7 +231,7 @@ class _LoginScreenState extends State<LoginScreen> {
                                 );
                               },
                               child: const Text(
-                                'Pas encore inscrit ? S\'inscrire',
+                                'Pas encore de compte ? S\'inscrire',
                                 style: TextStyle(
                                   color: Colors.deepPurple,
                                   fontWeight: FontWeight.w600,
@@ -231,125 +246,6 @@ class _LoginScreenState extends State<LoginScreen> {
                 ),
               ),
             ),
-          ),
-        ),
-      ),
-    );
-  }
-
-  void _login() async {
-    if (!_formKey.currentState!.validate()) {
-      return;
-    }
-
-    setState(() => _isLoading = true);
-
-    try {
-      final result = await _apiService.login(
-        email: _emailController.text.trim(),
-        password: _passwordController.text,
-      );
-
-      if (!mounted) return;
-
-      if (result['success']) {
-        // Connexion réussie : on navigue directement.
-        // On n'appelle pas setState car ce widget va être remplacé.
-        Navigator.pushReplacement(
-          context,
-          MaterialPageRoute(
-            builder: (context) => const DashboardScreen(),
-          ),
-        );
-      } else {
-        // Erreur de connexion : on affiche l'erreur et on arrête le chargement.
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Erreur de connexion'),
-            backgroundColor: Colors.red,
-          ),
-        );
-        setState(() => _isLoading = false);
-      }
-    } catch (e) {
-      if (!mounted) return;
-      // Erreur technique : on affiche l'erreur et on arrête le chargement.
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(
-          content: Text('Erreur: $e'),
-          backgroundColor: Colors.red,
-        ),
-      );
-      setState(() => _isLoading = false);
-  final _formKey = GlobalKey<FormState>();
-  final _emailController = TextEditingController();
-  final _passwordController = TextEditingController();
-
-  Future<void> _submit() async {
-    if (!(_formKey.currentState?.validate() ?? false)) {
-      return;
-    }
-    
-    final authProvider = Provider.of<AuthProvider>(context, listen: false);
-    final success = await authProvider.login(
-      _emailController.text,
-      _passwordController.text,
-    );
-    
-    // Correction: vérifier si le widget est toujours monté
-    if (!mounted) return;
-
-    if (!success) {
-      ScaffoldMessenger.of(context).showSnackBar(
-        SnackBar(content: Text(authProvider.errorMessage ?? 'Erreur de connexion')),
-      );
-    }
-  }
-
-  @override
-  void dispose() {
-    _emailController.dispose();
-    _passwordController.dispose();
-    super.dispose();
-  Widget build(BuildContext context) {
-    return Scaffold(
-      appBar: AppBar(title: const Text('Connexion')),
-      body: Padding(
-        padding: const EdgeInsets.all(16.0),
-        child: Form(
-          key: _formKey,
-          child: Column(
-            mainAxisAlignment: MainAxisAlignment.center,
-            children: [
-              TextFormField(
-                controller: _emailController,
-                decoration: const InputDecoration(labelText: 'Email'),
-                validator: (value) => value!.isEmpty ? 'Veuillez entrer votre email' : null,
-              ),
-              TextFormField(
-                controller: _passwordController,
-                decoration: const InputDecoration(labelText: 'Mot de passe'),
-                obscureText: true,
-                validator: (value) => value!.isEmpty ? 'Veuillez entrer votre mot de passe' : null,
-              ),
-              const SizedBox(height: 20),
-              Consumer<AuthProvider>(
-                builder: (ctx, auth, _) => auth.isLoading
-                    ? const CircularProgressIndicator()
-                    : ElevatedButton(
-                        onPressed: _submit,
-                        child: const Text('Se connecter'),
-                      ),
-              ),
-              TextButton(
-                onPressed: () {
-                  Navigator.of(context).pushReplacement(
-                    MaterialPageRoute(builder: (_) => const RegisterScreen()),
-                  );
-                },
-                child: const Text('Pas encore de compte ? S\'inscrire')
-              ),
-            ],
           ),
         ),
       ),

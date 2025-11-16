@@ -1,6 +1,7 @@
 import 'package:flutter/material.dart';
+import 'package:provider/provider.dart';
 import '../../models/product.dart';
-import '../../services/api_service.dart';
+import '../../providers/catalog_provider.dart';
 import 'add_product_screen.dart';
 
 class ProductsListScreen extends StatefulWidget {
@@ -11,52 +12,24 @@ class ProductsListScreen extends StatefulWidget {
 }
 
 class _ProductsListScreenState extends State<ProductsListScreen> {
-  final ApiService _apiService = ApiService();
-  List<Product> _products = [];
-  List<Product> _filteredProducts = [];
-  bool _isLoading = true;
   final TextEditingController _searchController = TextEditingController();
 
   @override
   void initState() {
     super.initState();
-    _loadProducts();
+    WidgetsBinding.instance.addPostFrameCallback((_) {
+      _loadProducts();
+    });
     _searchController.addListener(_filterProducts);
   }
 
   Future<void> _loadProducts() async {
-    setState(() => _isLoading = true);
-
-    final result = await _apiService.getMyProducts();
-
-    if (mounted) {
-      if (result['success']) {
-        setState(() {
-          _products = result['products'] ?? [];
-          _filteredProducts = _products;
-          _isLoading = false;
-        });
-      } else {
-        setState(() => _isLoading = false);
-        ScaffoldMessenger.of(context).showSnackBar(
-          SnackBar(
-            content: Text(result['message'] ?? 'Erreur de chargement'),
-            backgroundColor: Colors.red,
-          ),
-        );
-      }
-    }
+    await Provider.of<CatalogProvider>(context, listen: false).fetchMyProducts();
   }
 
   void _filterProducts() {
-    final query = _searchController.text.toLowerCase();
-    setState(() {
-      _filteredProducts = _products.where((product) {
-        return product.title.toLowerCase().contains(query) ||
-            product.description.toLowerCase().contains(query) ||
-            product.carat.toString().contains(query);
-      }).toList();
-    });
+    // Le filtrage peut être amélioré en le déplaçant dans le Provider
+    setState(() {}); // On force la reconstruction pour appliquer le filtre
   }
 
   Future<void> _deleteProduct(String productId) async {
@@ -66,10 +39,7 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
         title: const Text('Confirmer la suppression'),
         content: const Text('Voulez-vous vraiment supprimer ce produit ?'),
         actions: [
-          TextButton(
-            onPressed: () => Navigator.pop(context, false),
-            child: const Text('Annuler'),
-          ),
+          TextButton(onPressed: () => Navigator.pop(context, false), child: const Text('Annuler')),
           TextButton(
             onPressed: () => Navigator.pop(context, true),
             style: TextButton.styleFrom(foregroundColor: Colors.red),
@@ -79,26 +49,10 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
       ),
     );
 
-    if (confirm == true) {
-      final result = await _apiService.deleteProduct(productId);
-      if (mounted) {
-        if (result['success']) {
-          ScaffoldMessenger.of(context).showSnackBar(
-            const SnackBar(
-              content: Text('Produit supprimé avec succès'),
-              backgroundColor: Colors.green,
-            ),
-          );
-          _loadProducts();
-        } else {
-          ScaffoldMessenger.of(context).showSnackBar(
-            SnackBar(
-              content: Text(result['message'] ?? 'Erreur de suppression'),
-              backgroundColor: Colors.red,
-            ),
-          );
-        }
-      }
+    if (confirm == true && mounted) {
+      final success = await Provider.of<CatalogProvider>(context, listen: false).deleteProduct(productId);
+      final message = success ? 'Produit supprimé' : Provider.of<CatalogProvider>(context, listen: false).errorMessage ?? 'Erreur';
+      ScaffoldMessenger.of(context).showSnackBar(SnackBar(content: Text(message)));
     }
   }
 
@@ -107,8 +61,8 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
       context,
       MaterialPageRoute(builder: (context) => const AddProductScreen()),
     );
-    if (result == true) {
-      _loadProducts(); // Recharger après ajout
+    if (result == true && mounted) {
+      _loadProducts();
     }
   }
 
@@ -117,8 +71,8 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
       context,
       MaterialPageRoute(builder: (context) => AddProductScreen(product: product)),
     );
-    if (result == true) {
-      _loadProducts(); // Recharger après modification
+    if (result == true && mounted) {
+      _loadProducts();
     }
   }
 
@@ -131,83 +85,51 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
         backgroundColor: Colors.deepPurple,
         elevation: 0,
         actions: [
-          IconButton(
-            icon: const Icon(Icons.refresh),
-            onPressed: _loadProducts,
-          ),
+          IconButton(icon: const Icon(Icons.refresh), onPressed: _loadProducts),
         ],
       ),
-      body: Column(
-        children: [
-          // Search bar
-          Container(
-            color: Colors.deepPurple,
-            padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
-            child: TextField(
-              controller: _searchController,
-              decoration: InputDecoration(
-                hintText: 'Rechercher un produit...',
-                prefixIcon: const Icon(Icons.search),
-                filled: true,
-                fillColor: Colors.white,
-                border: OutlineInputBorder(
-                  borderRadius: BorderRadius.circular(15),
-                  borderSide: BorderSide.none,
+      body: Consumer<CatalogProvider>(
+        builder: (ctx, catalog, child) {
+          final query = _searchController.text.toLowerCase();
+          final filteredProducts = catalog.products.where((p) =>
+              p.title.toLowerCase().contains(query) ||
+              p.description.toLowerCase().contains(query)).toList();
+
+          return Column(
+            children: [
+              Container(
+                color: Colors.deepPurple,
+                padding: const EdgeInsets.fromLTRB(20, 0, 20, 20),
+                child: TextField(
+                  controller: _searchController,
+                  decoration: InputDecoration(
+                    hintText: 'Rechercher un produit...',
+                    prefixIcon: const Icon(Icons.search),
+                    filled: true,
+                    fillColor: Colors.white,
+                    border: OutlineInputBorder(borderRadius: BorderRadius.circular(15), borderSide: BorderSide.none),
+                  ),
                 ),
               ),
-            ),
-          ),
-
-          // Products list
-          Expanded(
-            child: _isLoading
-                ? const Center(child: CircularProgressIndicator())
-                : _filteredProducts.isEmpty
-                ? Center(
-              child: Column(
-                mainAxisAlignment: MainAxisAlignment.center,
-                children: [
-                  Icon(
-                    Icons.inventory_2_outlined,
-                    size: 80,
-                    color: Colors.grey[400],
-                  ),
-                  const SizedBox(height: 20),
-                  Text(
-                    _searchController.text.isEmpty
-                        ? 'Aucun produit'
-                        : 'Aucun résultat',
-                    style: TextStyle(
-                      fontSize: 18,
-                      color: Colors.grey[600],
-                      fontWeight: FontWeight.w500,
-                    ),
-                  ),
-                  const SizedBox(height: 10),
-                  Text(
-                    _searchController.text.isEmpty
-                        ? 'Commencez par ajouter votre premier produit'
-                        : 'Essayez une autre recherche',
-                    style: TextStyle(
-                      fontSize: 14,
-                      color: Colors.grey[500],
-                    ),
-                  ),
-                ],
+              Expanded(
+                child: catalog.isLoading
+                    ? const Center(child: CircularProgressIndicator())
+                    : filteredProducts.isEmpty
+                        ? _buildEmptyState()
+                        : RefreshIndicator(
+                            onRefresh: _loadProducts,
+                            child: ListView.builder(
+                              padding: const EdgeInsets.all(20),
+                              itemCount: filteredProducts.length,
+                              itemBuilder: (context, index) {
+                                return _buildProductCard(filteredProducts[index]);
+                              },
+                            ),
+                          ),
               ),
-            )
-                : RefreshIndicator(
-              onRefresh: _loadProducts,
-              child: ListView.builder(
-                padding: const EdgeInsets.all(20),
-                itemCount: _filteredProducts.length,
-                itemBuilder: (context, index) {
-                  return _buildProductCard(_filteredProducts[index]);
-                },
-              ),
-            ),
-          ),
-        ],
+            ],
+          );
+        },
       ),
       floatingActionButton: FloatingActionButton.extended(
         onPressed: _navigateToAddScreen,
@@ -218,8 +140,29 @@ class _ProductsListScreenState extends State<ProductsListScreen> {
     );
   }
 
+  Widget _buildEmptyState() {
+    return Center(
+      child: Column(
+        mainAxisAlignment: MainAxisAlignment.center,
+        children: [
+          Icon(Icons.inventory_2_outlined, size: 80, color: Colors.grey[400]),
+          const SizedBox(height: 20),
+          Text(
+            _searchController.text.isEmpty ? 'Aucun produit' : 'Aucun résultat',
+            style: TextStyle(fontSize: 18, color: Colors.grey[600], fontWeight: FontWeight.w500),
+          ),
+          const SizedBox(height: 10),
+          Text(
+            _searchController.text.isEmpty ? 'Commencez par ajouter votre premier produit' : 'Essayez une autre recherche',
+            style: TextStyle(fontSize: 14, color: Colors.grey[500]),
+          ),
+        ],
+      ),
+    );
+  }
+
   Widget _buildProductCard(Product product) {
-    return Container(
+     return Container(
       margin: const EdgeInsets.only(bottom: 15),
       decoration: BoxDecoration(
         color: Colors.white,

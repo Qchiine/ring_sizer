@@ -1,9 +1,11 @@
 import 'dart:convert';
 import 'package:http/http.dart' as http;
-import 'package:ring_sizer/config/api_config.dart';
+import 'package:ring_sizer/services/api_service.dart'; // Remplacé ApiConfig par ApiService
 import 'package:ring_sizer/models/product.dart';
 
 class CatalogService {
+  final ApiService _apiService = ApiService(); // Instance de ApiService
+
   Future<List<Product>> getProducts({
     String? name,
     int? carat,
@@ -21,9 +23,10 @@ class CatalogService {
       if (weightMax != null) 'weightMax': weightMax.toString(),
     };
 
-    final uri = Uri.parse('${ApiConfig.baseUrl}/catalog').replace(queryParameters: queryParams);
+    final uri = Uri.parse('${ApiService.baseUrl}/catalog').replace(queryParameters: queryParams);
+    final headers = await _apiService.getHeaders(); // Utilise la méthode de ApiService
 
-    final response = await http.get(uri, headers: ApiConfig.getHeaders(null));
+    final response = await http.get(uri, headers: headers);
 
     if (response.statusCode == 200) {
       final List<dynamic> data = jsonDecode(response.body)['products'];
@@ -34,9 +37,10 @@ class CatalogService {
   }
 
   Future<Product> getProductById(String productId) async {
+    final headers = await _apiService.getHeaders(); // Utilise la méthode de ApiService
     final response = await http.get(
-      Uri.parse('${ApiConfig.baseUrl}/catalog/$productId'),
-      headers: ApiConfig.getHeaders(null),
+      Uri.parse('${ApiService.baseUrl}/catalog/$productId'),
+      headers: headers,
     );
 
     if (response.statusCode == 200) {

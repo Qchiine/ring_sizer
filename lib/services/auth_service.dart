@@ -5,20 +5,28 @@ import 'package:ring_sizer/models/user.dart';
 import 'package:ring_sizer/utils/storage_helper.dart';
 
 class AuthService {
-  Future<Map<String, dynamic>> register(String name, String email, String password) async {
+  Future<Map<String, dynamic>> register(String name, String email, String password, String role) async {
     final response = await http.post(
       Uri.parse('${ApiConfig.baseUrl}/auth/register'),
       headers: ApiConfig.getHeaders(null),
-      body: jsonEncode({'name': name, 'email': email, 'password': password}),
+      body: jsonEncode({
+        'name': name,
+        'email': email,
+        'password': password,
+        'role': role, // Ajout du rôle
+      }),
     );
 
     if (response.statusCode == 200 || response.statusCode == 201) {
       final data = jsonDecode(response.body);
       final token = data['token'];
+      final user = User.fromJson(data['user']);
+
       if (token != null) {
         await StorageHelper.saveToken(token);
+        await StorageHelper.saveRole(user.role); // Sauvegarder le rôle de l'utilisateur
       }
-      return {'token': token, 'user': User.fromJson(data['user'])};
+      return {'token': token, 'user': user};
     } else {
       throw Exception('Failed to register: ${response.body}');
     }
@@ -34,16 +42,19 @@ class AuthService {
     if (response.statusCode == 200) {
       final data = jsonDecode(response.body);
       final token = data['token'];
+      final user = User.fromJson(data['user']);
+
       if (token != null) {
         await StorageHelper.saveToken(token);
+        await StorageHelper.saveRole(user.role); // Sauvegarder le rôle de l'utilisateur
       }
-      return {'token': token, 'user': User.fromJson(data['user'])};
+      return {'token': token, 'user': user};
     } else {
       throw Exception('Failed to login: ${response.body}');
     }
   }
 
   Future<void> logout() async {
-    await StorageHelper.deleteToken();
+    await StorageHelper.clear(); // Utiliser la nouvelle méthode clear
   }
 }
